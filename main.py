@@ -94,7 +94,7 @@ if __name__ == "__main__":
     def exploreationOver() -> bool:
         for char in explored.keys():
             allExploredForThisKey = all(
-                explored[char][dir] is not None for dir in allDirections)
+                explored[char][direction] is not None for direction in allDirections)
             if not allExploredForThisKey:
                 return False
         return True
