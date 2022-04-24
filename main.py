@@ -1,6 +1,6 @@
 import socket
 import string
-
+from functools import cmp_to_key
 import networkx as nx
 
 import matplotlib.pyplot as plt
@@ -15,12 +15,6 @@ if __name__ == "__main__":
     initialState = 'A'
     allDirections = '123'
     serverDetails = ('20.211.33.233', 65432)
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(serverDetails)
-    except socket.error:
-        print("unable to estalbish connection with server")
-        exit(1)
 
     def receiveInitialState():
         """
@@ -36,54 +30,50 @@ if __name__ == "__main__":
         input: msg to send to server
         output: response from server
         """
-
         sock.sendall(bytes(f"{msg}\n", 'utf-8'))
         print(f"{msg} sent")
         rsvMsg = sock.recv(MAX_MSG_SIZE).decode("utf-8").strip()
         print(f"{rsvMsg} recieved")
         return rsvMsg
 
-    def findClosestPathToFinalState(pathSofarNumeric, pathSofarString):
+    def findClosestPathToFinalState(pathSofarString:str,pathSofarNumeric:str='')->str:
         """
-        uses explored dictionary to return shortest path to unexplored state; if no such path found, returns closest path to exit.
+        uses explored tree to return shortest path to exit
         """
         currentCharToExplore = pathSofarString[-1]
-        for dir in allDirections:
-            if explored[currentCharToExplore][dir] == finalState:
-                return pathSofarNumeric+dir
-
+        for direction in allDirections:
+            if explored[currentCharToExplore][direction] == finalState:
+                return pathSofarNumeric+direction
         allPaths = []
         for dir in allDirections:
             nextCandidateCharacter = explored[currentCharToExplore][dir]
-
             if nextCandidateCharacter not in pathSofarString:  # avoid loops
-                candidatePathOut = findClosestPathToFinalState(pathSofarNumeric+dir,
-                                                               pathSofarString+nextCandidateCharacter)
+                candidatePathOut = findClosestPathToFinalState(pathSofarString+nextCandidateCharacter,
+                                   pathSofarNumeric+dir)
                 if candidatePathOut:
                     allPaths.append(candidatePathOut)
         if allPaths:
             return sorted(allPaths, key=len)[0]
         return None
 
-    def findClosestPathToUnexplored(pathSofarNumeric: str, pathSofarString: str) -> str:
+    def findClosestPathToUnexplored(pathSofarString: str, pathSofarNumeric : str='' ) -> str:
         """
         uses explored dictionary to return shortest path to unexplored state
         """
         currentCharToExplore = pathSofarString[-1]
-        for dir in allDirections:
-            if explored[currentCharToExplore][dir] == unExplored:
-                return pathSofarNumeric+dir
+        for direction in allDirections:
+            if explored[currentCharToExplore][direction] == unExplored:
+                return pathSofarNumeric+direction
 
         allPaths = []
-        for dir in allDirections:
-            nextCandidateCharacter = explored[currentCharToExplore][dir]
+        for direction in allDirections:
+            nextCandidateCharacter = explored[currentCharToExplore][direction]
             if nextCandidateCharacter not in pathSofarString and nextCandidateCharacter != finalState:  # avoid loops
                 allPaths.append(
-                    findClosestPathToUnexplored(pathSofarNumeric+dir,
-                                                pathSofarString+nextCandidateCharacter))
-        if not allPaths:
-            # special case when exploration cannot find a new state from current place, need to find the closest exit
-            return findClosestPathToFinalState(pathSofarNumeric, pathSofarString)
+                    findClosestPathToUnexplored(pathSofarString+nextCandidateCharacter, pathSofarNumeric+direction))
+        if currentCharToExplore=='A':
+            print(allPaths)
+
 
         # There are paths that don't lead to exit
         validPaths = list(filter(lambda path: path is not None, allPaths))
@@ -92,35 +82,52 @@ if __name__ == "__main__":
         return None
 
     def exploreationOver() -> bool:
+        """
+        Returns True if all directions for all nodes are cool
+        """
+
         for char in explored.keys():
             allExploredForThisKey = all(
-                explored[char][direction] is not None for direction in allDirections)
+                explored[char][direction] is not unExplored for direction in allDirections)
             if not allExploredForThisKey:
                 return False
         return True
-    explored = {state: {direction: None for direction in allDirections}
+    explored = {state: {direction: unExplored for direction in allDirections}
                 for state in string.ascii_uppercase if state != finalState}
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(serverDetails)
 
-    receiveInitialState()
-    currentCharToExplore = initialState
-    while not exploreationOver():
-        shortestPathToUnexploredNumric = findClosestPathToUnexplored(
-            '', currentCharToExplore)
+        receiveInitialState()
+        currentCharToExplore = initialState
 
-        for directionToExplore in shortestPathToUnexploredNumric[:-1]:
-            sendMessage(directionToExplore)
-            currentCharToExplore = explored[currentCharToExplore][directionToExplore]
-        newDirToExplore = shortestPathToUnexploredNumric[-1]
-        newExploredChar = sendMessage(newDirToExplore)
-        print(f"{currentCharToExplore}->{newDirToExplore}->{newExploredChar}")
-        explored[currentCharToExplore][newDirToExplore] = newExploredChar
-        currentCharToExplore = newExploredChar
-        if currentCharToExplore == finalState:
-            receiveInitialState()
-            currentCharToExplore = initialState
-    explored["Z"] = {'-': "A"}
-    print(explored)
-    sock.close()
+        while not exploreationOver():
+            print(f"currently we are exploring {currentCharToExplore}")
+            shortestPathToUnexploredNumeric = findClosestPathToUnexplored(currentCharToExplore)
+            if not shortestPathToUnexploredNumeric:
+                shortestPathToUnexploredNumeric = findClosestPathToFinalState(currentCharToExplore)
+            assert shortestPathToUnexploredNumeric!=None
+            for directionToExplore in shortestPathToUnexploredNumeric[:-1]:
+                sendMessage(directionToExplore)
+                currentCharToExplore = explored[currentCharToExplore][directionToExplore]
+            newDirToExplore = shortestPathToUnexploredNumeric[-1]
+            newExploredChar = sendMessage(newDirToExplore)
+            print(f"just explored {currentCharToExplore}->{newDirToExplore}->{newExploredChar}")
+            explored[currentCharToExplore][newDirToExplore] = newExploredChar
+            currentCharToExplore = newExploredChar
+            if currentCharToExplore == finalState:
+                receiveInitialState()
+                currentCharToExplore = initialState
+            print(f"Current tree:{explored}")
+        explored["Z"] = {'-': "A"}
+        print(f"full tree:{explored}")
+    except socket.error:
+        print("unable to establish connection with server")
+        exit(1)
+    except AssertionError:
+        print("no path to victory!")
+    finally:
+        sock.close()
 
     graphObject = nx.DiGraph()
     for node, outgoingEdge in explored.items():
