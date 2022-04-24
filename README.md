@@ -23,3 +23,6 @@ Shown graph is for the following state transposition tree:
 'U': {'1': 'I', '2': 'R', '3': 'O'}, 'V': {'1': 'D', '2': 'M', '3': 'X'}, 
 'W': {'1': 'T', '2': 'I', '3': 'Q'}, 'X': {'1': 'R', '2': 'M', '3': 'Y'}, 
 'Y': {'1': 'V', '2': 'W', '3': 'R'}, 'Z': {'-': 'A'}}
+
+Using networkx instead of graphviz as graphviz seems outdated and didn't work well with latest python
+Unfortunately not easy to print labels (1,2,3) for edges 

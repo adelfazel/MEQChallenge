@@ -7,7 +7,11 @@ import matplotlib.pyplot as plt
 
 # Concept inventory
 # 1-useful to have a function sendMessage that sends a number and returns response by the server.
-# 2-
+# 2-a function to wait until 'A' is received
+# 3-A function to return closest path to unexplored (recursive function).
+# 4-A function to return closest path to final state in case
+
+
 if __name__ == "__main__":
     MAX_MSG_SIZE = 16
     unExplored = None
@@ -94,13 +98,13 @@ if __name__ == "__main__":
         return True
     explored = {state: {direction: unExplored for direction in allDirections}
                 for state in string.ascii_uppercase if state != finalState}
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(serverDetails)
-
+    def explore():
+        """
+        Explore the unexplored tree, throw exception if no such path exists.
+        :return:
+        """
         receiveInitialState()
         currentCharToExplore = initialState
-
         while not exploreationOver():
             print(f"currently we are exploring {currentCharToExplore}")
             shortestPathToUnexploredNumeric = findClosestPathToUnexplored(currentCharToExplore)
@@ -119,6 +123,11 @@ if __name__ == "__main__":
                 receiveInitialState()
                 currentCharToExplore = initialState
             print(f"Current tree:{explored}")
+
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(serverDetails)
+        explore()
         explored["Z"] = {'-': "A"}
         print(f"full tree:{explored}")
     except socket.error:
