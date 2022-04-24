@@ -98,8 +98,8 @@ if __name__ == "__main__":
             if not allExploredForThisKey:
                 return False
         return True
-    explored = {ch: {dir: None for dir in '123'}
-                for ch in string.ascii_uppercase if ch != 'Z'}
+    explored = {ch: {direction: None for direction in allDirections}
+                for ch in string.ascii_uppercase if ch != finalState}
 
     receiveInitialState()
     currentCharToExplore = initialState
